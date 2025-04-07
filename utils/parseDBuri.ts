@@ -1,7 +1,7 @@
 import { readFileSync } from 'fs';
 import  parse from 'pg-connection-string';
 
-export function parseDatabaseUrl(url: string, caPath?: string) {
+export function parseDatabaseUrl(url: string, ca?: string) {
   const connection = parse.parse(url);
 
   if (!connection.user || !connection.password || !connection.host || !connection.port || !connection.database) {
@@ -14,10 +14,10 @@ export function parseDatabaseUrl(url: string, caPath?: string) {
     host: connection.host,
     port: Number(connection.port),
     database: connection.database,
-    ssl: caPath
+    ssl: ca
       ? {
           rejectUnauthorized: true,
-          ca: readFileSync(caPath, 'utf-8'),
+          ca,
         }
       : undefined,
   };

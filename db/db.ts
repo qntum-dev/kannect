@@ -1,17 +1,14 @@
-import { drizzle } from "drizzle-orm/node-postgres"
+import { drizzle } from "drizzle-orm/node-postgres";
 import { parseDatabaseUrl } from '../utils/parseDBuri';
-import * as schema from './schemas/userSchema'; // ✅ your schema import
-
+import * as schemas from './schemas/index'; // Single import for all schemas
 import { secret } from "encore.dev/config";
 import pg from "pg";
 
 const db_uri = secret("DB_URI");
+const pem = secret("PEM");
 
-export const pool = new pg.Pool(parseDatabaseUrl(db_uri(), "ca.pem"));
+export const pool = new pg.Pool(parseDatabaseUrl(db_uri(), pem()));
 
-const db = drizzle(pool,{
-    schema
-});
+const db = drizzle(pool, { schema: schemas });
 
 export { db };
-
