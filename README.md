@@ -1,11 +1,5 @@
-# URL Shortener Starter
-
-This is an Encore starter for a URL Shortener. It has two API endpoints and a PostgreSQL database to store the URL IDs 
-and retrieve the full URL given an ID.
-
-## Build from scratch with a tutorial
-
-If you prefer to built it yourself, check out the [tutorial](https://encore.dev/docs/ts/tutorials/rest-api) to learn how to build this application from scratch.
+# Kannect
+This is a chat application backend made with Encore TS.
 
 ## Prerequisites 
 
@@ -18,17 +12,11 @@ If you prefer to built it yourself, check out the [tutorial](https://encore.dev/
 1. [Install Docker](https://docker.com)
 2. Start Docker
 
-## Create app
+**Install npm dependencies:**
+1. npm i
 
-Create a local app from this template:
-
-```bash
-encore app create my-app-name --example=ts/url-shortener
-```
-
-## Run app locally
-
-Before running your application, make sure you have Docker installed and running. Then run this command from your application's root folder:
+<!-- ## Run app locally
+Run this command from your application's root folder:
 
 ```bash
 encore run
@@ -116,4 +104,4 @@ To run tests, configure the `test` command in your `package.json` to the test ru
 
 ```bash
 encore test
-```
+``` -->
