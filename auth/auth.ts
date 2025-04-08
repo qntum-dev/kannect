@@ -1,46 +1,47 @@
-import { APIError, Gateway, Header } from "encore.dev/api";
+import { Header, Gateway, APIError } from "encore.dev/api";
 import { authHandler } from "encore.dev/auth";
+import * as cookie from "cookie"
+
+import jwt from "jsonwebtoken";
 import { secret } from "encore.dev/config";
-
-import log from "encore.dev/log";
-
-const jwt_secret = secret("JWT_SECRET");
-
-
+// AuthParams specifies the incoming request information
+// the auth handler is interested in.
 interface AuthParams {
     authCookies: Header<"Cookie">;
 }
 
+// The AuthData specifies the information about the authenticated user
+// that the auth handler makes available.
 interface AuthData {
     userID: string;
-    emailAddress: string;
 }
 
-const myAuthHandler = authHandler(async (params: AuthParams): Promise<
-    AuthData
-> => {
-    const token = params.authCookies;
 
-    if (!token) {
-        throw APIError.unauthenticated("no token provided");
+const jwtSecret = secret("JWT_SECRET")
+
+// The auth handler itself.
+export const auth = authHandler<AuthParams, AuthData>(
+    async (params) => {
+        const parsedCookie = cookie.parse(params.authCookies);
+        console.log(parsedCookie.authToken);
+
+        if (parsedCookie.authToken) {
+            const decodedJWT = jwt.verify(
+                parsedCookie.authToken,
+                jwtSecret()
+            ) as jwt.JwtPayload;
+
+            console.log(decodedJWT);
+
+            return { userID: decodedJWT.uid as string };
+        }
+
+        // Optional: handle case where there is no token
+        throw APIError.unauthenticated("No auth token provided");
     }
+);
 
-    // try {
-    //     const result = await verifyToken(token, {
-    //         authorizedParties: AUTHORIZED_PARTIES,
-    //         secretKey: clerkSecretKey(),
-    //     });
-
-    //     const user = await clerkClient.users.getUser(result.sub);
-
-    return {
-        userID:"",
-        emailAddress: "",
-    };
-    // } catch (e) {
-    //     log.error(e);
-    //     throw APIError.unauthenticated("invalid token", e as Error);
-    // }
-});
-
-export const mygw = new Gateway({ authHandler: myAuthHandler });
+// Define the API Gateway that will execute the auth handler:
+export const gateway = new Gateway({
+    authHandler: auth,
+})

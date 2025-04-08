@@ -1,4 +1,4 @@
 import { Service } from "encore.dev/service";
 
+export default new Service("authCookie");
 
-export default new Service("auth");

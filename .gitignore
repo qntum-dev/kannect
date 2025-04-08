@@ -8,3 +8,4 @@ node_modules
 .secrets.local.cue
 .env
 infra-config.json
+pnpm-lock.yaml

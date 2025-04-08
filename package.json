@@ -10,11 +10,13 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
-
-    "db:studio": "drizzle-kit studio"
+    "studio": "drizzle-kit studio"
   },
   "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.9",
     "@types/node": "^20.5.7",
+    "@types/node-cron": "^3.0.11",
+    "@types/nodemailer": "^6.4.17",
     "@types/pg": "^8.11.11",
     "drizzle-kit": "^0.30.6",
     "typescript": "^5.2.2",
@@ -22,9 +24,13 @@
   },
   "dependencies": {
     "@sinclair/typebox": "^0.34.33",
+    "bcrypt-ts": "^6.0.0",
+    "cookie": "^1.0.2",
     "drizzle-orm": "^0.41.0",
     "encore.dev": "^1.46.16",
     "jsonwebtoken": "^9.0.2",
+    "node-cron": "^3.0.3",
+    "nodemailer": "^6.10.0",
     "pg": "^8.14.1",
     "pg-connection-string": "^2.7.0"
   },

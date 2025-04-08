@@ -15,4 +15,5 @@ export const userTable = pgTable("user", {
   verificationOtpExpiresAt: timestamp("verification_otp_expires_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  // isPassKeyAuth:boolean("is_pass_key_auth")
 });
