@@ -6,12 +6,12 @@ export const getToken = api({
     expose:true,
     auth:true,
     method:"GET",
-    path:"/testAuth/getUID"
-}, async ():Promise<{uid:string}> => {
+    path:"/testAuth/getPID"
+}, async ():Promise<{pid:string}> => {
     const userData=getAuthData()!;
     console.log(userData.userID);
     
     return {
-        uid:`${userData.userID}`
+        pid:`${userData.userID}`
     }
 })

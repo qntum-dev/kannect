@@ -1,0 +1,1 @@
+ALTER TABLE "users" ALTER COLUMN "public_id" SET NOT NULL;

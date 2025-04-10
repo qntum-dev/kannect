@@ -1,11 +1,11 @@
 {
-  "id": "dedecdce-474c-4556-86bd-d9e2aa42edec",
-  "prevId": "90c6abff-c30d-486d-b067-5cd21808e52c",
+  "id": "857bc7fa-fcfc-4015-98c2-30affee9d11e",
+  "prevId": "dedecdce-474c-4556-86bd-d9e2aa42edec",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
-    "public.user_verification_tokens": {
-      "name": "user_verification_tokens",
+    "public.userOTPs": {
+      "name": "userOTPs",
       "schema": "",
       "columns": {
         "id": {
@@ -87,9 +87,9 @@
         }
       },
       "foreignKeys": {
-        "user_verification_tokens_user_id_users_id_fk": {
-          "name": "user_verification_tokens_user_id_users_id_fk",
-          "tableFrom": "user_verification_tokens",
+        "userOTPs_user_id_users_id_fk": {
+          "name": "userOTPs_user_id_users_id_fk",
+          "tableFrom": "userOTPs",
           "tableTo": "users",
           "columnsFrom": [
             "user_id"

@@ -33,7 +33,7 @@ export const auth = authHandler<AuthParams, AuthData>(
 
             console.log(decodedJWT);
 
-            return { userID: decodedJWT.uid as string };
+            return { userID: decodedJWT.pid as string };
         }
 
         // Optional: handle case where there is no token

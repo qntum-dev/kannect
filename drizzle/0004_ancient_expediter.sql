@@ -1,0 +1,1 @@
+ALTER TABLE "chats" ALTER COLUMN "public_id" SET DATA TYPE text;
