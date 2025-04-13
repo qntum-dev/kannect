@@ -5,36 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1744189529723,
-      "tag": "0000_fine_metal_master",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1744189758213,
-      "tag": "0001_sad_stranger",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1744189977199,
-      "tag": "0002_outgoing_nightmare",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1744191155548,
-      "tag": "0003_mature_prodigy",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1744207578309,
-      "tag": "0004_ancient_expediter",
+      "when": 1744534597704,
+      "tag": "0000_early_black_widow",
       "breakpoints": true
     }
   ]

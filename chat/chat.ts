@@ -5,12 +5,10 @@ import { chats } from "../db/schemas";
 import { getAuthData } from "~encore/auth";
 import { getIdFromPublicId } from "../utils/redisHelpers";
 import { nanoid } from "nanoid";
-import { eq, or } from "drizzle-orm";
+import { eq, or, and } from "drizzle-orm";
 
 // Map to hold all connected streams by userID
 const connectedStreams: Map<string, StreamInOut<SendMessageRequest, ReceiveMessageResponse>> = new Map();
-
-// const connectedStatusStreams: Map<string, StreamInOut<StatusRequest, StatusResponse>> = new Map();
 
 interface ChatHandshake {
     receiverID: string;
@@ -18,15 +16,14 @@ interface ChatHandshake {
 
 interface SendMessageRequest {
     msg: string;
-    type: "message" | "typing"
+    type: "message" | "typing";
 }
 
 interface ReceiveMessageResponse {
     senderID: string;
     msg: string;
-    type: "message" | "typing"
+    type: "message" | "typing";
 }
-
 
 export const chat = api.streamInOut<ChatHandshake, SendMessageRequest, ReceiveMessageResponse>(
     { expose: true, auth: true, path: "/chat" },
@@ -40,26 +37,45 @@ export const chat = api.streamInOut<ChatHandshake, SendMessageRequest, ReceiveMe
 
         connectedStreams.set(_userID, stream);
 
-        let chat = await db.query.chats.findFirst({
-            where: (chats, { or, and, eq }) =>
-                or(
-                    and(eq(chats.userAId, _userID), eq(chats.userBId, _receiverID)),
-                    and(eq(chats.userAId, _receiverID), eq(chats.userBId, _userID))
-                )
-        });
+        // --- Try to get chat from Redis cache first
+        const cacheKeyA = `chat:user:${_userID}:receiver:${_receiverID}`;
+        const cacheKeyB = `chat:user:${_receiverID}:receiver:${_userID}`;
+
+        let chatString = await redis.get(cacheKeyA);
+        let chat = chatString ? JSON.parse(chatString) : null;
 
         if (!chat) {
-            chat = await db.insert(chats).values({
-                publicId: nanoid(),
-                userAId: _userID,
-                userBId: _receiverID,
-            }).returning().then(rows => rows[0]);
+            // Fallback to DB
+            chat = await db.query.chats.findFirst({
+                where: (chats, { or, and, eq }) =>
+                    or(
+                        and(eq(chats.userAId, _userID), eq(chats.userBId, _receiverID)),
+                        and(eq(chats.userAId, _receiverID), eq(chats.userBId, _userID))
+                    )
+            });
+
+            if (!chat) {
+                // Create new chat in DB
+                chat = await db.insert(chats).values({
+                    publicId: nanoid(),
+                    userAId: _userID,
+                    userBId: _receiverID,
+                }).returning().then(rows => rows[0]);
+            }
+
+            // Cache chat in Redis (both directions)
+            if (chat) {
+                const chatJSON = JSON.stringify(chat);
+                await redis.set(cacheKeyA, chatJSON);
+                await redis.set(cacheKeyB, chatJSON);
+            }
+        }
+
+        if (!chat) {
+            throw APIError.internal("Failed to create chat");
         }
 
         log.info("User connected to chat", { userID, receiverID: handshake.receiverID });
-        if (!chat) {
-            throw APIError.internal("failed to create chat")
-        }
 
         try {
             for await (const incomingMessage of stream) {
@@ -67,41 +83,42 @@ export const chat = api.streamInOut<ChatHandshake, SendMessageRequest, ReceiveMe
 
                 if (!receiverStream) {
                     log.info("Receiver not connected");
-                    // continue;
+                    // Don't continue here, we still want to publish typing or persist messages later.
                 }
 
                 if (incomingMessage.type === "typing") {
                     log.info("Typing indicator", { sender: userID });
-                    if(receiverStream){
 
+                    // Send to receiver if connected
+                    if (receiverStream) {
                         await receiverStream.send({
                             senderID: userID,
-                            msg: "", // usually empty string or specific indicator
+                            msg: "",
                             type: "typing",
                         });
                     }
 
-                    await redis.publish(`chat:${chat.id}:typing`, JSON.stringify({ senderID: userID, chatId: chat.id }));
-
+                    // Publish to Redis Pub/Sub so other services / clients can listen
+                    await redis.publish(`chat:${chat.id}:typing`, JSON.stringify({
+                        senderID: userID,
+                        chatId: chat.id,
+                    }));
 
                     continue;
                 }
 
                 if (incomingMessage.type === "message") {
                     log.info("New message", { sender: userID });
-                    if(receiverStream){
 
+                    if (receiverStream) {
                         await receiverStream.send({
                             senderID: userID,
                             msg: incomingMessage.msg,
                             type: "message",
                         });
                     }
-                    await redis.publish(`chat:${chat.id}:message`, JSON.stringify({
-                        senderID: userID,
-                        chatId: chat.id,
-                        msg: incomingMessage.msg,
-                    }));
+
+                    // Here you can also save messages to DB if needed!
                     continue;
                 }
 
@@ -115,4 +132,3 @@ export const chat = api.streamInOut<ChatHandshake, SendMessageRequest, ReceiveMe
         log.info("User disconnected", { userID });
     },
 );
-

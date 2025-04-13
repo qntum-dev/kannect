@@ -9,3 +9,4 @@ node_modules
 .env
 infra-config.json
 pnpm-lock.yaml
+todo.json
