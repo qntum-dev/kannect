@@ -3,21 +3,19 @@ import { IsEmail, MaxLen, MinLen } from "encore.dev/validate";
 import { generateOtp } from "../utils/generateOTP";
 import { and, eq } from "drizzle-orm";
 import { users } from "../db/schemas";
-import { db } from "../db/db";
+import { db, redis } from "../db/db";
 import { mail, otp } from "~encore/clients";
 import { getAuthData } from "~encore/auth";
 import { compare, genSalt, hash } from "bcrypt-ts";
 import { validatePassword } from "../utils/validate";
 import { userOTPs } from "../db/schemas/authSchema";
+import { User } from "../auth/auth";
 
 // working verify otp code
 export const sendVerifyOTP = api({
-    expose: true, auth: false, method: "GET", path: "/otp/sendVerifyOTP/:public_id"
-}, async ({ public_id }: {
-    public_id: string
-}): Promise<{ status: string }> => {
-    console.log(public_id);
-
+    expose: true, auth: true, method: "GET", path: "/otp/sendVerifyOTP"
+}, async (): Promise<{ status: string }> => {
+    const public_id = getAuthData()!.userID;
     const find_user = await db.query.users.findFirst({
         where: eq(users.publicId, public_id)
     });
@@ -67,7 +65,7 @@ export const verifyEmailOTP = api({
     otp: string & MinLen<6> & MaxLen<6>
 }): Promise<{ status: string }> => {
     // try {
-        
+
     // } catch (error) {
     //     console.log(error);
     //     return {
@@ -77,77 +75,83 @@ export const verifyEmailOTP = api({
 
     const { userID: public_id } = getAuthData()!;
 
-        const user = await db.query.users.findFirst({
-            where: eq(users.publicId, public_id)
-        });
-        if (!user) {
-            throw APIError.notFound("User not found")
-        }
-        if (user.isVerified) {
-            return { status: "already_verified" };
-        }
-        const userToken = await db.query.userOTPs.findFirst({
-            where: and(
-                eq(userOTPs.tokenType, "email_otp"),
-                eq(userOTPs.userId, user.id)
-            ),
-            orderBy: (table, { desc }) => [desc(table.createdAt)],
-
-        });
-
-        if (!user) {
-            throw APIError.notFound("User not found");
-        }
-
-        if (!userToken) {
-            throw APIError.notFound("No otp found resend the otp");
-
-        }
-        
-
-        if (userToken.token !== otp) {
-            throw APIError.unauthenticated("Incorrect OTP");
-        }
-
-        const isExpired = userToken.expiresAt < new Date();
-
-        if (isExpired) {
-            throw APIError.unauthenticated("OTP expired! Generate a new OTP");
-        }
-
-        await db.delete(userOTPs).where(eq(userOTPs.userId, user.id)).returning();
-
-        await db.update(users).set({
-            isVerified:true
-        })
-
-        return {
-            status: "Email Verified successfully"
-        };
-
-});
-
-export const verifyForgotPasswordOTP = api({
-    auth: true,
-    expose: true,
-    path: "/otp/verify-forgot-password",
-    method: "POST"
-}, async ({ otp, new_password }: {
-    otp: string & MinLen<6> & MaxLen<6>,
-    new_password: string & MinLen<8>
-}): Promise<{ status: string }> => {
-
-    const { userID: public_id } = getAuthData()!;
-
-    const user = await db.query.users.findFirst({
+    let user = await db.query.users.findFirst({
         where: eq(users.publicId, public_id)
     });
     if (!user) {
         throw APIError.notFound("User not found")
     }
-    
+    if (user.isVerified) {
+        return { status: "already_verified" };
+    }
+    const userToken = await db.query.userOTPs.findFirst({
+        where: and(
+            eq(userOTPs.tokenType, "email_otp"),
+            eq(userOTPs.userId, user.id)
+        ),
+        orderBy: (table, { desc }) => [desc(table.createdAt)],
+
+    });
+
+    if (!user) {
+        throw APIError.notFound("User not found");
+    }
+
+    if (!userToken) {
+        throw APIError.notFound("No otp found resend the otp");
+
+    }
+
+
+    if (userToken.token !== otp) {
+        throw APIError.unauthenticated("Incorrect OTP");
+    }
+
+    const isExpired = userToken.expiresAt < new Date();
+
+    if (isExpired) {
+        throw APIError.unauthenticated("OTP expired! Generate a new OTP");
+    }
+
+    await db.delete(userOTPs).where(eq(userOTPs.userId, user.id)).returning();
+
+    const r: User[] = await db.update(users).set({
+        isVerified: true
+    }).where(eq(users.publicId, public_id)).returning()
+
+    console.log("updated user");
+
+    console.log(r);
+
+    await redis.set(`user:${r[0].publicId}`, JSON.stringify(r[0]))
+
+    return {
+        status: "Email Verified successfully"
+    };
+
+});
+
+export const verifyForgotPasswordOTP = api({
+    auth: false,
+    expose: true,
+    path: "/otp/verify-forgot-password",
+    method: "POST"
+}, async ({ email, otp, new_password }: {
+    email: string,
+    otp: string & MinLen<6> & MaxLen<6>,
+    new_password: string & MinLen<8>
+}): Promise<{ status: string }> => {
+
+
+    const user = await db.query.users.findFirst({
+        where: eq(users.email, email)
+    });
+    if (!user) {
+        throw APIError.notFound("User not found")
+    }
+
     console.log(user.id);
-    
+
     const userToken = await db.query.userOTPs.findFirst({
         where: and(
             eq(userOTPs.tokenType, "forgot_otp"),
@@ -199,7 +203,7 @@ export const verifyForgotPasswordOTP = api({
 
 
 export const sendResetOTP = api({
-    expose: true, auth: false, method: "GET", path: "/otp/sendResetOTP/:email"
+    expose: true, auth: false, method: "POST", path: "/otp/sendResetOTP"
 }, async ({ email }: {
     email: string
 }): Promise<{ status: string }> => {

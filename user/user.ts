@@ -1,6 +1,6 @@
 import { api, APIError, ErrCode, Header } from "encore.dev/api";
 import { MinLen, IsEmail } from "encore.dev/validate";
-import { db } from "../db/db";
+import { db, redis } from "../db/db";
 import { users } from "../db/schemas/userSchema";
 import { eq, lt } from "drizzle-orm";
 import { validatePassword } from "../utils/validate";
@@ -40,6 +40,7 @@ cron.schedule('0 3 * * *', async () => {
 export const create = api<ReqBody, Response>({
     method: "POST",
     expose: true,
+    auth: false,
     path: "/user/create"
 }, async ({ email, name, about, password }): Promise<Response> => {
 
@@ -64,7 +65,7 @@ export const create = api<ReqBody, Response>({
 
     const [user] = await db.insert(users).values({
         username: `${name.split(" ")[0]}-${nanoid(6)}`,
-        publicId:nanoid(),
+        publicId: nanoid(),
         name,
         email,
         about,
@@ -78,10 +79,10 @@ export const create = api<ReqBody, Response>({
     const token = jwt.sign({ pid: user.publicId }, jwt_secret(), {
         expiresIn: "7d"
     })
+    await redis.set(`user:${user.publicId}`, JSON.stringify(user))
 
-    await otp.sendVerifyOTP({
-        public_id: user.publicId
-    })
+
+    // await otp.sendVerifyOTP()
 
 
     // console.log(token);
@@ -116,7 +117,7 @@ export const login = api<LoginReq, Response>({
     const token = jwt.sign({ pid: find_user.publicId }, jwt_secret(), {
         expiresIn: "7d"
     })
-    
+
     return {
         message: "Logged In Successfully",
         authorisation: `authToken=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800;`

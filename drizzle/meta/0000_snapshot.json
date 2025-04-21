@@ -1,5 +1,5 @@
 {
-  "id": "2af158d4-eea1-4bd5-9089-7cc85d43ddee",
+  "id": "83985c4e-961b-4dec-ae62-16822c2b62d5",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -27,9 +27,10 @@
           "primaryKey": false,
           "notNull": true
         },
-        "token_type": {
-          "name": "token_type",
-          "type": "text",
+        "tokenTypes": {
+          "name": "tokenTypes",
+          "type": "tokenTypes",
+          "typeSchema": "public",
           "primaryKey": false,
           "notNull": true,
           "default": "'email_otp'"
@@ -776,6 +777,14 @@
     }
   },
   "enums": {
+    "public.tokenTypes": {
+      "name": "tokenTypes",
+      "schema": "public",
+      "values": [
+        "email_otp",
+        "forgot_otp"
+      ]
+    },
     "public.attachment_type": {
       "name": "attachment_type",
       "schema": "public",

@@ -5,7 +5,6 @@ import { chats } from "../db/schemas";
 import { getAuthData } from "~encore/auth";
 import { getIdFromPublicId } from "../utils/redisHelpers";
 import { nanoid } from "nanoid";
-import { eq, or, and } from "drizzle-orm";
 
 // Map to hold all connected streams by userID
 const connectedStreams: Map<string, StreamInOut<SendMessageRequest, ReceiveMessageResponse>> = new Map();
@@ -16,20 +15,27 @@ interface ChatHandshake {
 
 interface SendMessageRequest {
     msg: string;
-    type: "message" | "typing";
+    type: "message" | "typing" | "media";
 }
 
 interface ReceiveMessageResponse {
     senderID: string;
     msg: string;
-    type: "message" | "typing";
+    type: "message" | "typing" | "media";
 }
+
 
 export const chat = api.streamInOut<ChatHandshake, SendMessageRequest, ReceiveMessageResponse>(
     { expose: true, auth: true, path: "/chat" },
     async (handshake, stream) => {
-        const { userID } = getAuthData()!;
+        const auth = getAuthData();
+        if (!auth) {
+            throw APIError.unauthenticated("Sorry, you are not autorized to perform this action")
+        }
+        let userID = auth.userID
+
         const _userID = await getIdFromPublicId("user", userID);
+
         const _receiverID = await getIdFromPublicId("user", handshake.receiverID);
 
         if (!_userID) throw APIError.notFound("User not found");
@@ -42,7 +48,12 @@ export const chat = api.streamInOut<ChatHandshake, SendMessageRequest, ReceiveMe
         const cacheKeyB = `chat:user:${_receiverID}:receiver:${_userID}`;
 
         let chatString = await redis.get(cacheKeyA);
+        console.log("chat string");
+
+        console.log(chatString);
+
         let chat = chatString ? JSON.parse(chatString) : null;
+        console.log(chat);
 
         if (!chat) {
             // Fallback to DB
@@ -66,6 +77,8 @@ export const chat = api.streamInOut<ChatHandshake, SendMessageRequest, ReceiveMe
             // Cache chat in Redis (both directions)
             if (chat) {
                 const chatJSON = JSON.stringify(chat);
+                const chat_string = `chat:${chat.id}`
+                await redis.set(chat_string, chatJSON)
                 await redis.set(cacheKeyA, chatJSON);
                 await redis.set(cacheKeyB, chatJSON);
             }
@@ -117,6 +130,32 @@ export const chat = api.streamInOut<ChatHandshake, SendMessageRequest, ReceiveMe
                             type: "message",
                         });
                     }
+
+                    // Here you can also save messages to DB if needed!
+                    continue;
+                }
+
+
+                if (incomingMessage.type === "media") {
+                    log.info("media file sent from ", userID);
+                    // await fetch()
+                    // await media.upload({
+                    //     chatID: chat.id
+                    // })
+                    if (receiverStream) {
+                        await receiverStream.send({
+                            senderID: userID,
+                            msg: "",
+                            type: "media",
+                        });
+                    }
+                    // if (receiverStream) {
+                    //     await receiverStream.send({
+                    //         senderID: userID,
+                    //         msg: incomingMessage.msg,
+                    //         type: "message",
+                    //     });
+                    // }
 
                     // Here you can also save messages to DB if needed!
                     continue;

@@ -1,9 +1,10 @@
+CREATE TYPE "public"."tokenTypes" AS ENUM('email_otp', 'forgot_otp');--> statement-breakpoint
 CREATE TYPE "public"."attachment_type" AS ENUM('image', 'video', 'audio', 'document');--> statement-breakpoint
 CREATE TABLE "userOTPs" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"user_id" uuid NOT NULL,
 	"token" text NOT NULL,
-	"token_type" text DEFAULT 'email_otp' NOT NULL,
+	"tokenTypes" "tokenTypes" DEFAULT 'email_otp' NOT NULL,
 	"expires_at" timestamp with time zone NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
