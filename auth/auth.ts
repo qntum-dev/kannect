@@ -36,13 +36,12 @@ export const auth = authHandler<AuthParams, AuthData>(
         try {
             const decodedJWT = jwt.verify(token, jwtSecret()) as jwt.JwtPayload;
 
-            console.log(decodedJWT);
 
-            if (!decodedJWT.pid) {
-                throw APIError.invalidArgument("Invalid auth token: missing pid");
+            if (!decodedJWT.uid) {
+                throw APIError.invalidArgument("Invalid auth token: missing uid");
             }
 
-            return { userID: decodedJWT.pid as string };
+            return { userID: decodedJWT.uid as string };
         } catch (err: any) {
             console.error("JWT verification failed:", err.message);
 
@@ -67,22 +66,18 @@ export const validateAuthToken = api({
     status: string
 }> => {
     const userID = getAuthData()!.userID
-    let userString = await redis.get(`user:${userID}`)
+    let userString = await redis.get(`user:id:${userID}`)
     let user;
     if (!userString) {
-        console.log("here at not userstring");
 
         user = await db.query.users.findFirst({
-            where: eq(users.publicId, userID)
+            where: eq(users.id, userID)
         });
     }
-    console.log("here at redis userstring");
 
     user = JSON.parse(userString!) as User;
-    console.log(user);
 
     if (!user) {
-        console.log("not a valid user");
 
         throw APIError.unauthenticated("not a valid user")
     }
@@ -100,16 +95,14 @@ export const checkVerifiedAccount = api({
     status: "verified" | "not-verified"
 }> => {
     const userID = getAuthData()!.userID;
-    let userString = await redis.get(`user:${userID}`)
+    let userString = await redis.get(`user:id:${userID}`)
     let user;
     if (!userString) {
-        console.log("here at not userstring");
 
         user = await db.query.users.findFirst({
-            where: eq(users.publicId, userID)
+            where: eq(users.id, userID)
         });
     }
-    console.log("here at redis userstring");
 
     user = JSON.parse(userString!) as User;
 

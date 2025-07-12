@@ -4,91 +4,90 @@ import { chats, messages, users } from "../db/schemas";
 
 const DEFAULT_TTL = 60 * 60 * 24 * 7; // 7 days
 
-// Define entity config with proper types
+type Chat = typeof chats.$inferSelect;
+type Message = typeof messages.$inferSelect;
+type User = typeof users.$inferSelect;
+
+// Map entity type to its result type
+type EntityDataMap = {
+  user: User;
+  chat: Chat;
+  message: Message;
+};
+
+type Entity = keyof EntityDataMap;
+
+// === Entity configuration with column mapping ===
 const entityConfig = {
   user: {
     table: users,
-    idColumn: users.id,
-    publicIdColumn: users.publicId,
+    columns: {
+      id: users.id,
+      email: users.email,
+      username: users.username
+      // Add other possible ID columns here if needed
+    }
   },
   chat: {
     table: chats,
-    idColumn: chats.id,
-    publicIdColumn: chats.publicId,
+    columns: {
+      id: chats.id,
+      // Add other possible ID columns here if needed
+    }
   },
   message: {
     table: messages,
-    idColumn: messages.id,
-    publicIdColumn: messages.publicId,
-  },
+    columns: {
+      id: messages.id,
+      // Add other possible ID columns here if needed
+    }
+  }
 } as const;
 
-// Create proper type for entity keys
-type Entity = keyof typeof entityConfig;
-
 /**
- * Sets up bidirectional mapping between internal ID and public ID in Redis
+ * Retrieves entity data by ID with Redis caching
+ * @param entity The entity type to fetch (user, chat, message)
+ * @param id The ID value to look up
+ * @param columnName The column name to search by (defaults to "id")
+ * @returns The entity data or null if not found
  */
-export async function setIdPublicIdMapping(entity: Entity, id: string, publicId: string): Promise<void> {
-  await Promise.all([
-    redis.set(`${entity}:publicId:${publicId}`, id),
-    redis.set(`${entity}:id:${id}:publicId`, publicId),
-  ]);
-}
+export async function getIDdata<E extends Entity>(
+  entity: E,
+  id: string,
+  columnName: string = "id"
+): Promise<EntityDataMap[E]> {
+  const cacheKey = `${entity}:${columnName}:${id}`;
 
-/**
- * Gets the internal ID from a public ID
- * Checks cache first, falls back to database lookup
- */
-export async function getIdFromPublicId(entity: Entity, publicId: string): Promise<string | null> {
-  const cachedId = await redis.get(`${entity}:publicId:${publicId}`);
-  if (cachedId) return cachedId;
-
-  const { table, publicIdColumn } = entityConfig[entity];
-
-  const result = await db.select({ id: table.id })
-    .from(table)
-    .where(eq(publicIdColumn, publicId))
-    .limit(1);
-
-  if (result.length > 0 && result[0].id) {
-    const id = String(result[0].id);
-    await setIdPublicIdMapping(entity, id, publicId);
-    return id;
+  // Try to get from cache first
+  const cachedData = await redis.get(cacheKey);
+  if (cachedData) {
+    try {
+      return JSON.parse(cachedData) as EntityDataMap[E];
+    } catch {
+      // If cache is corrupted or invalid, fallback to DB
+    }
   }
 
-  return null;
-}
+  // Get the entity configuration
+  const config = entityConfig[entity];
+  const idColumn = config.columns[columnName as keyof typeof config.columns];
 
-/**
- * Gets the public ID from an internal ID
- * Checks cache first, falls back to database lookup
- */
-export async function getPublicIdFromId(entity: Entity, id: string): Promise<string | null> {
-  const cachedPublicId = await redis.get(`${entity}:id:${id}:publicId`);
-  if (cachedPublicId) return cachedPublicId;
+  if (!idColumn) {
+    throw new Error(`Invalid column name "${columnName}" for entity "${entity}"`);
+  }
 
-  const { table, idColumn } = entityConfig[entity];
-
-  const result = await db.select({ publicId: table.publicId })
-    .from(table)
+  // Query the database
+  const result = await db
+    .select()
+    .from(config.table)
     .where(eq(idColumn, id))
     .limit(1);
 
-  if (result.length > 0 && result[0].publicId) {
-    await setIdPublicIdMapping(entity, id, result[0].publicId);
-    return result[0].publicId;
-  }
+  const data = result[0] as EntityDataMap[E];
+  // Cache the result
+  await redis.set(cacheKey, JSON.stringify(data), 'EX', DEFAULT_TTL);
+  return data;
+  // if (result.length > 0) {
+  // }
 
-  return null;
-}
-
-/**
- * Clears the ID/public ID mapping from Redis
- */
-export async function clearIdPublicIdMapping(entity: Entity, id: string, publicId: string): Promise<void> {
-  await Promise.all([
-    redis.del(`${entity}:publicId:${publicId}`),
-    redis.del(`${entity}:id:${id}:publicId`)
-  ]);
 }

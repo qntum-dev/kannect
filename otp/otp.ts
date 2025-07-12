@@ -15,9 +15,9 @@ import { User } from "../auth/auth";
 export const sendVerifyOTP = api({
     expose: true, auth: true, method: "GET", path: "/otp/sendVerifyOTP"
 }, async (): Promise<{ status: string }> => {
-    const public_id = getAuthData()!.userID;
+    const userID = getAuthData()!.userID;
     const find_user = await db.query.users.findFirst({
-        where: eq(users.publicId, public_id)
+        where: eq(users.id, userID)
     });
 
     if (!find_user) {
@@ -64,19 +64,12 @@ export const verifyEmailOTP = api({
 }, async ({ otp }: {
     otp: string & MinLen<6> & MaxLen<6>
 }): Promise<{ status: string }> => {
-    // try {
 
-    // } catch (error) {
-    //     console.log(error);
-    //     return {
-    //         status: "error"
-    //     }
-    // }
 
-    const { userID: public_id } = getAuthData()!;
+    const { userID } = getAuthData()!;
 
     let user = await db.query.users.findFirst({
-        where: eq(users.publicId, public_id)
+        where: eq(users.id, userID)
     });
     if (!user) {
         throw APIError.notFound("User not found")
@@ -117,13 +110,11 @@ export const verifyEmailOTP = api({
 
     const r: User[] = await db.update(users).set({
         isVerified: true
-    }).where(eq(users.publicId, public_id)).returning()
+    }).where(eq(users.id, userID)).returning()
 
-    console.log("updated user");
 
-    console.log(r);
 
-    await redis.set(`user:${r[0].publicId}`, JSON.stringify(r[0]))
+    await redis.set(`user:id:${r[0].id}`, JSON.stringify(r[0]))
 
     return {
         status: "Email Verified successfully"
@@ -150,7 +141,6 @@ export const verifyForgotPasswordOTP = api({
         throw APIError.notFound("User not found")
     }
 
-    console.log(user.id);
 
     const userToken = await db.query.userOTPs.findFirst({
         where: and(
@@ -207,7 +197,6 @@ export const sendResetOTP = api({
 }, async ({ email }: {
     email: string
 }): Promise<{ status: string }> => {
-    console.log(email);
 
     const find_user = await db.query.users.findFirst({
         where: eq(users.email, email)

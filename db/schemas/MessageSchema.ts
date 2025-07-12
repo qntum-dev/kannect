@@ -20,7 +20,6 @@ const messageTypeEnum = pgEnum('message_type', ['text', 'system', 'call']);
 // Messages Table
 export const messages = pgTable('messages', {
     id: uuid('id').defaultRandom().primaryKey(),
-    publicId: uuid('public_id').notNull().unique(),
     chatId: uuid('chat_id').notNull().references(() => chats.id),
     senderId: uuid('sender_id').notNull().references(() => users.id),
     content: text('content'),
@@ -31,7 +30,7 @@ export const messages = pgTable('messages', {
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
-    uniqueIndex('msg_cursor_idx').on(table.chatId, table.createdAt)
+    uniqueIndex('msg_cursor_idx').on(table.createdAt)
 ]);
 
 // Attachment type enum

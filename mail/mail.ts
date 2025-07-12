@@ -17,12 +17,12 @@ interface mailStructure {
     mail_addr: string
     subject: string
     mail_body: string
-    html?:string
+    html?: string
 }
 
 export const send = api({
-    auth:false
-}, async ({mail_addr,mail_body,subject,html}:mailStructure) => {
+    auth: false
+}, async ({ mail_addr, mail_body, subject, html }: mailStructure) => {
     const info = await transporter.sendMail({
         from: {
             name: "Kannect",
@@ -34,5 +34,5 @@ export const send = api({
         // html: "<b>Hello world?</b>", // html body
     });
 
-    console.log("Email sent: %s", info.messageId);
+
 })

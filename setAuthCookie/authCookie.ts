@@ -6,21 +6,20 @@ type AuthenticateUserParams = {
   authorisation: Header<"Set-Cookie">
 }
 
-type CookieValue={
-  uid:string
+type CookieValue = {
+  uid: string
 }
 
-const jwt_secret=secret("JWT_SECRET");
+const jwt_secret = secret("JWT_SECRET");
 
-export const set = api<CookieValue,AuthenticateUserParams>(
+export const set = api<CookieValue, AuthenticateUserParams>(
   { method: "GET", path: "/setCookie", expose: true },
-  async ({uid}) => {
-    const token=jwt.sign({uid},jwt_secret(),{
-      expiresIn:"7d"
+  async ({ uid }) => {
+    const token = jwt.sign({ uid }, jwt_secret(), {
+      expiresIn: "7d"
     })
 
-    console.log(token);
-    
+
     return {
       authorisation: `authToken=${token}; HttpOnly;`
     }
