@@ -100,6 +100,10 @@ export namespace newChat {
         latestMessageTime: number | null
     }
 
+    export interface ChatListHandshake {
+        userID: string
+    }
+
     export interface ChatListRes {
         chatListData: ChatListData[]
         noData: boolean
@@ -120,6 +124,7 @@ export namespace newChat {
 
     export interface HandshakeRequest {
         chatID: string
+        userID: string
     }
 
     export interface NewChatRequest {
@@ -149,8 +154,13 @@ export namespace newChat {
             this.privateChat = this.privateChat.bind(this)
         }
 
-        public async chatListStream(): Promise<StreamInOut<ChatListStreamReq, ChatListStreamRes>> {
-            return await this.baseClient.createStreamInOut(`/chatlist/stream`)
+        public async chatListStream(params: ChatListHandshake): Promise<StreamInOut<ChatListStreamReq, ChatListStreamRes>> {
+            // Convert our params into the objects we need for the request
+            const query = makeRecord<string, string | string[]>({
+                userID: params.userID,
+            })
+
+            return await this.baseClient.createStreamInOut(`/chatlist/stream`, {query})
         }
 
         public async getChatList(params: {
@@ -212,6 +222,7 @@ export namespace newChat {
             // Convert our params into the objects we need for the request
             const query = makeRecord<string, string | string[]>({
                 chatID: params.chatID,
+                userID: params.userID,
             })
 
             return await this.baseClient.createStreamInOut(`/private-chat`, {query})

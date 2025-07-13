@@ -8,7 +8,7 @@ import { getIDdata } from "../utils/redisHelpers";
 import { z } from "zod";
 import log from "encore.dev/log";
 import { findOrCreateDM, getChatListData } from "./helpers/getters";
-import { chatData, ChatListRes, ChatListStreamReq, ChatListStreamRes, HandshakeRequest, NewChatRequest, ReceiveMessage, SendMessage, StartChatRequest, startChatSchema } from "./types";
+import { chatData, ChatListHandshake, ChatListRes, ChatListStreamReq, ChatListStreamRes, HandshakeRequest, NewChatRequest, ReceiveMessage, SendMessage, StartChatRequest, startChatSchema } from "./types";
 import cron from 'node-cron';
 
 
@@ -92,11 +92,10 @@ export const getMessages = api({
 
 
 export const privateChat = api.streamInOut<HandshakeRequest, ReceiveMessage, SendMessage>(
-    { expose: true, path: "/private-chat", auth: true },
+    { expose: true, path: "/private-chat" },
     async (handshake, stream) => {
-        const userID = getAuthData()?.userID!
 
-        const { chatID } = handshake;
+        const { chatID, userID } = handshake;
 
         const allowed = allowedUsersForSession.get(chatID);
 
@@ -190,10 +189,10 @@ const chatListStreams: Map<string, StreamInOut<ChatListStreamReq, ChatListStream
 
 
 
-export const chatListStream = api.streamInOut<ChatListStreamReq, ChatListStreamRes>(
-    { path: "/chatlist/stream", expose: true, auth: true },
-    async (stream) => {
-        const userID = getAuthData()?.userID!
+export const chatListStream = api.streamInOut<ChatListHandshake, ChatListStreamReq, ChatListStreamRes>(
+    { path: "/chatlist/stream", expose: true },
+    async (handshake, stream) => {
+        const { userID } = handshake;
 
 
         if (!chatListStreams.has(userID)) {
@@ -245,7 +244,7 @@ export const chatListStream = api.streamInOut<ChatListStreamReq, ChatListStreamR
 
 
 export const startChat = api<StartChatRequest, { chatID: string, type: "new" | "existing", receiverId: string, receiverName: string }>(
-    { path: "/start-chat", method: "POST", auth: true },
+    { path: "/start-chat", method: "POST", auth: true, expose: true },
     async (input) => {
         const parsed = startChatSchema.safeParse(input);
         if (!parsed.success) {

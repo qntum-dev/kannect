@@ -10,6 +10,7 @@ export interface ChatSession {
 
 export interface HandshakeRequest {
     chatID: string;
+    userID: string;
 }
 
 export interface ReceiveMessage {
@@ -43,6 +44,9 @@ export type chatData = {
     receiverId: string;
 };
 
+export type ChatListHandshake = {
+    userID: string; // The user ID initiating the handshake  
+};
 
 export type ChatListStreamReq = {
     chat_id: string;

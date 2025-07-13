@@ -107,7 +107,6 @@ export const login = api<LoginReq, Response>({
     method: "POST",
     path: "/user/login",
     expose: true,
-
     auth: false
 }, async ({ email, password }) => {
     const find_user = await db.query.users.findFirst({
