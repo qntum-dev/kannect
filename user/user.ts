@@ -13,6 +13,7 @@ import { nanoid } from "nanoid";
 import { z } from "zod";
 import { getAuthData } from "~encore/auth";
 import { getIDdata } from "../utils/redisHelpers";
+import { IncomingMessage } from "http";
 
 interface ReqBody {
     name: string & MinLen<1>;
@@ -144,6 +145,72 @@ export const login = api<LoginReq, Response>({
     }
 })
 
+// Extract the body from an incoming request.
+function getBody(req: IncomingMessage): Promise<string> {
+    return new Promise((resolve) => {
+        const bodyParts: any[] = [];
+        req
+            .on("data", (chunk) => {
+                bodyParts.push(chunk);
+            })
+            .on("end", () => {
+                resolve(Buffer.concat(bodyParts).toString());
+            });
+    });
+}
+
+export const loginRaw = api.raw({
+    method: 'POST',
+    path: '/user/loginRaw',
+    expose: true,
+    auth: false,
+}, async (req, resp) => {
+    const body = await getBody(req);
+
+    console.log(body);
+    console.log(JSON.parse(body).email);
+    console.log(JSON.parse(body).password);
+
+
+    const find_user = await db.query.users.findFirst({
+        where: eq(users.email, JSON.parse(body).email),
+    });
+
+    if (!find_user) {
+        throw APIError.notFound('User not found');
+    }
+
+    await redis.set(`user:id:${find_user.id}`, JSON.stringify(find_user));
+
+    const verified = await compare(JSON.parse(body).password, find_user.passwordHash);
+    if (!verified) {
+        throw APIError.unauthenticated('Invalid Password');
+    }
+
+    const token = jwt.sign({ uid: find_user.id }, jwt_secret(), {
+        expiresIn: '7d',
+    });
+
+    const userData: PublicUser = {
+        id: find_user.id,
+        username: find_user.username,
+        name: find_user.name,
+        about: find_user.about,
+        email: find_user.email,
+        isVerified: find_user.isVerified,
+        profileImgUrl: find_user.profileImgUrl || null,
+        createdAt: find_user.createdAt,
+        updatedAt: find_user.updatedAt,
+    };
+
+    resp.setHeader('Set-Cookie', `authToken=${token}; Path=/; HttpOnly; Secure; SameSite=none; Domain=localhost`);
+
+    // resp.statusCode = 204;
+    resp.end(JSON.stringify({
+        userData,
+    }));
+
+});
 
 // const findUserSchema=z.string().email("Not a valid mail address")
 

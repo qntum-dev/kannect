@@ -142,6 +142,10 @@ export namespace newChat {
         timestamp: number
     }
 
+    export interface StartChatRequest {
+        userB: string
+    }
+
     export class ServiceClient {
         private baseClient: BaseClient
 
@@ -152,6 +156,7 @@ export namespace newChat {
             this.getMessages = this.getMessages.bind(this)
             this.newChat = this.newChat.bind(this)
             this.privateChat = this.privateChat.bind(this)
+            this.startChat = this.startChat.bind(this)
         }
 
         public async chatListStream(params: ChatListHandshake): Promise<StreamInOut<ChatListStreamReq, ChatListStreamRes>> {
@@ -226,6 +231,22 @@ export namespace newChat {
             })
 
             return await this.baseClient.createStreamInOut(`/private-chat`, {query})
+        }
+
+        public async startChat(params: StartChatRequest): Promise<{
+    chatID: string
+    type: "new" | "existing"
+    receiverId: string
+    receiverName: string
+}> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI("POST", `/start-chat`, JSON.stringify(params))
+            return await resp.json() as {
+    chatID: string
+    type: "new" | "existing"
+    receiverId: string
+    receiverName: string
+}
         }
     }
 }
